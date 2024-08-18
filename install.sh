@@ -54,10 +54,20 @@ main() {
 
     echo -e "Downloading Latest Roblox..."
     [ -f ./RobloxPlayer.zip ] && rm ./RobloxPlayer.zip
+    local robloxVersionInfo=$(curl -s "https://clientsettingscdn.roblox.com/v2/client-version/MacPlayer")
     local versionInfo=$(curl -s "https://git.raptor.fun/main/version.json")
     
-    curl "https://setup.rbxcdn.com/mac/version-bb8653ace14f4523-RobloxPlayer.zip" -o "./RobloxPlayer.zip"
-    # apparently roblox just reuploaded the old version 💀
+    local mChannel=$(echo $versionInfo | ./jq -r ".channel")
+    local robloxVersion=$(echo $robloxVersionInfo | ./jq -r ".clientVersionUpload")
+    local version="$robloxVersion"
+    
+    if [ "$version" != "$robloxVersion" ] && [ "$mChannel" == "preview" ]
+    then
+        curl "http://setup.rbxcdn.com/mac/$robloxVersion-RobloxPlayer.zip" -o "./RobloxPlayer.zip"
+    else
+        curl "http://setup.rbxcdn.com/mac/$version-RobloxPlayer.zip" -o "./RobloxPlayer.zip"
+    fi
+    
     rm ./jq
     echo -n "Installing Latest Roblox... "
     [ -d "/Applications/Roblox.app" ] && rm -rf "/Applications/Roblox.app"
@@ -74,7 +84,12 @@ main() {
     echo -e "Done."
 
     echo -n "Updating Dylib..."
-     curl -Os "https://git.raptor.fun/main/macsploit.dylib"
+    if [ "$version" != "$robloxVersion" ] && [ "$mChannel" == "preview" ]
+    then
+        curl -Os "https://git.raptor.fun/preview/macsploit.dylib"
+    else
+        curl -Os "https://git.raptor.fun/main/macsploit.dylib"
+    fi
     
     echo -e " Done."
     echo -e "Patching Roblox..."
@@ -92,6 +107,10 @@ main() {
     
     touch ~/Downloads/ms-version.json
     echo $versionInfo > ~/Downloads/ms-version.json
+    if [ "$version" != "$robloxVersion" ] && [ "$mChannel" == "preview" ]
+    then
+        cat <<< $(./jq '.channel = "previewb"' ~/Downloads/ms-version.json) > ~/Downloads/ms-version.json
+    fi
     
     echo -e "Done."
     echo -e "Install Complete! Developed by Nexus42!"
